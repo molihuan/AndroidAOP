@@ -3,7 +3,7 @@ package com.flyjingfish.android_aop_plugin.scanner_visitor
 import com.flyjingfish.android_aop_plugin.utils.AppClasses
 import com.flyjingfish.android_aop_plugin.utils.ClassPoolUtils
 import com.flyjingfish.android_aop_plugin.utils.InitConfig
-import com.flyjingfish.android_aop_plugin.utils.Utils
+import com.flyjingfish.android_aop_plugin.utils.Utils.CONVERSIONS_CLASS
 import com.flyjingfish.android_aop_plugin.utils.Utils.dotToSlash
 import com.flyjingfish.android_aop_plugin.utils.Utils.slashToDot
 import com.flyjingfish.android_aop_plugin.utils.Utils.slashToDotClassName
@@ -15,11 +15,11 @@ import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.Label
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
-import org.objectweb.asm.Type
 import org.objectweb.asm.commons.AdviceAdapter
 import org.objectweb.asm.signature.SignatureReader
 import org.objectweb.asm.signature.SignatureVisitor
 import org.objectweb.asm.signature.SignatureWriter
+import kotlin.math.max
 
 open class ReplaceBaseClassVisitor(
     classVisitor: ClassVisitor
@@ -210,20 +210,30 @@ open class ReplaceBaseClassVisitor(
                     mv.visitInsn(DUP);//压入栈
                     //弹出一个对象所在的地址，进行初始化操作，构造函数默认为空，此时栈大小为1（到目前只有一个局部变量）
                     mv.visitMethodInsn(INVOKESPECIAL, dotToSlash(className),"<init>","()V",false)
-                    mv.visitInsn(POP) // 保证 try 分支栈深为 0
+                    mv.visitMethodInsn(
+                        INVOKESTATIC,
+                        dotToSlash(CONVERSIONS_CLASS),
+                        "collectObject",
+                        "(Ljava/lang/Object;)V",
+                        false
+                    )
 
                     mv.visitLabel(tryEnd)
-                    mv.visitJumpInsn(Opcodes.GOTO, tryCatchBlockEnd)
+                    mv.visitJumpInsn(GOTO, tryCatchBlockEnd)
 
                     mv.visitLabel(labelCatch)
-                    mv.visitVarInsn(Opcodes.ASTORE, 0)
-
-                    mv.visitVarInsn(Opcodes.ALOAD, 0)
+                    mv.visitFrame(
+                        Opcodes.F_SAME1, // 局部变量和上一个 frame 相同，但栈上多 1 个
+                        0,               // nLocal = 0 (static 方法没有局部变量)
+                        null,            // locals
+                        1,               // nStack = 1
+                        arrayOf("java/lang/NoClassDefFoundError") // catch 捕获的异常对象在栈顶
+                    )
                     mv.visitMethodInsn(
-                        Opcodes.INVOKEVIRTUAL,
-                        "java/lang/NoClassDefFoundError",
-                        "printStackTrace",
-                        "()V",
+                        INVOKESTATIC,
+                        dotToSlash(CONVERSIONS_CLASS),
+                        "collectThrowable",
+                        "(Ljava/lang/Throwable;)V",
                         false
                     )
 
@@ -236,7 +246,11 @@ open class ReplaceBaseClassVisitor(
         }
 
         override fun visitMaxs(maxStack: Int, maxLocals: Int) {
-            super.visitMaxs(maxStack + 4, maxLocals)
+            val tryCatchMaxStack = 2
+
+            val finalMaxStack = max(maxStack, tryCatchMaxStack)
+
+            super.visitMaxs(finalMaxStack, maxLocals)
         }
 
         override fun onMethodExit(opcode: Int) {

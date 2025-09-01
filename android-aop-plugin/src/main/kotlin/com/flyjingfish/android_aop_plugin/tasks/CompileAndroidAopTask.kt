@@ -323,36 +323,14 @@ class CompileAndroidAopTask(
                             val byteArray = inputs.readAllBytes()
                             if (byteArray.isNotEmpty()){
                                 try {
-                                    val cr = ClassReader(byteArray)
-                                    val cw = ClassWriter(cr,0)
-                                    var thisHasStaticClock = false
-                                    val cv = object : ReplaceBaseClassVisitor(cw) {
-                                        override fun visitMethod(
-                                            access: Int,
-                                            name: String,
-                                            descriptor: String,
-                                            signature: String?,
-                                            exceptions: Array<String?>?
-                                        ): MethodVisitor? {
-                                            val mv = super.visitMethod(
-                                                access,
-                                                name,
-                                                descriptor,
-                                                signature,
-                                                exceptions
-                                            )
-                                            thisHasStaticClock = isHasStaticClock
-                                            return ReplaceInvokeMethodVisitor(mv,clazzName,oldSuperName)
-                                        }
-                                    }
-                                    cr.accept(cv, 0)
-
-                                    if (!thisHasStaticClock){
-                                        WovenIntoCode.wovenStaticCode(cw, thisClassName)
-                                    }
-
+//                                    val newByteArray = try {
+//                                        aopTaskUtils.wovenIntoCodeForCollect(thisClassName,byteArray,WovenInfoUtils.getWovenClassWriterFlags(),WovenInfoUtils.getWovenParsingOptions())
+//                                    } catch (e: Exception) {
+//                                        aopTaskUtils.wovenIntoCodeForCollect(thisClassName,byteArray,WovenInfoUtils.getWovenClassWriterFlags2(),WovenInfoUtils.getWovenParsingOptions2())
+//                                    }
+                                    val newByteArray = aopTaskUtils.wovenIntoCodeForCollect(thisClassName,byteArray,0,0)
                                     mkOutFile()
-                                    cw.toByteArray().saveFile(outFile)
+                                    newByteArray.saveFile(outFile)
                                 } catch (e: Exception) {
                                     e.printDetail()
                                     copy()

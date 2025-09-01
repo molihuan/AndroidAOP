@@ -235,4 +235,12 @@ public final class Conversions {
 		}
 		return null;
 	}
+
+	public static void collectObject(Object o){
+
+	}
+
+	public static void collectThrowable(Throwable e){
+		e.printStackTrace();
+	}
 }

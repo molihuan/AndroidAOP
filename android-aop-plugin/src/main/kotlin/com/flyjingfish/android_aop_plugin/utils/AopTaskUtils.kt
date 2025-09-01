@@ -14,6 +14,7 @@ import com.flyjingfish.android_aop_plugin.scanner_visitor.ClassSuperScanner
 import com.flyjingfish.android_aop_plugin.scanner_visitor.FixBugClassWriter
 import com.flyjingfish.android_aop_plugin.scanner_visitor.MethodReplaceInvokeVisitor
 import com.flyjingfish.android_aop_plugin.scanner_visitor.ReplaceBaseClassVisitor
+import com.flyjingfish.android_aop_plugin.scanner_visitor.ReplaceInvokeMethodVisitor
 import com.flyjingfish.android_aop_plugin.scanner_visitor.SearchAOPConfigVisitor
 import com.flyjingfish.android_aop_plugin.scanner_visitor.SearchAopMethodVisitor
 import com.flyjingfish.android_aop_plugin.scanner_visitor.SuspendReturnScanner
@@ -25,8 +26,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import org.gradle.api.Project
 import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.MethodVisitor
 import java.io.File
 import java.io.FileInputStream
@@ -763,5 +764,37 @@ class AopTaskUtils(
         }
 
         return WovenResult(cw.toByteArray(), replaceResult)
+    }
+
+    fun wovenIntoCodeForCollect(thisClassName :String,byteArray: ByteArray,wovenClassWriterFlags:Int,wovenParsingOptions:Int): ByteArray {
+        val cr = ClassReader(byteArray)
+        val cw = ClassWriter(cr,wovenClassWriterFlags)
+        var thisHasStaticClock = false
+        val cv = object : ReplaceBaseClassVisitor(cw) {
+            override fun visitMethod(
+                access: Int,
+                name: String,
+                descriptor: String,
+                signature: String?,
+                exceptions: Array<String?>?
+            ): MethodVisitor? {
+                val mv = super.visitMethod(
+                    access,
+                    name,
+                    descriptor,
+                    signature,
+                    exceptions
+                )
+                thisHasStaticClock = isHasStaticClock
+                return ReplaceInvokeMethodVisitor(mv,clazzName,oldSuperName)
+            }
+        }
+        cr.accept(cv, wovenParsingOptions)
+
+        if (!thisHasStaticClock){
+            WovenIntoCode.wovenStaticCode(cw, thisClassName)
+        }
+
+        return cw.toByteArray()
     }
 }

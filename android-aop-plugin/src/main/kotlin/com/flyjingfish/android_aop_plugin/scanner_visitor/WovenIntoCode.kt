@@ -54,11 +54,38 @@ import kotlinx.metadata.isSuspend
 import kotlinx.metadata.jvm.KotlinClassMetadata
 import kotlinx.metadata.jvm.Metadata
 import kotlinx.metadata.jvm.signature
-import org.gradle.api.Project
-import org.objectweb.asm.*
+import org.objectweb.asm.AnnotationVisitor
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.ClassWriter.COMPUTE_FRAMES
 import org.objectweb.asm.ClassWriter.COMPUTE_MAXS
-import org.objectweb.asm.Opcodes.*
+import org.objectweb.asm.FieldVisitor
+import org.objectweb.asm.Label
+import org.objectweb.asm.MethodVisitor
+import org.objectweb.asm.ModuleVisitor
+import org.objectweb.asm.Opcodes
+import org.objectweb.asm.Opcodes.ACC_ABSTRACT
+import org.objectweb.asm.Opcodes.ACC_FINAL
+import org.objectweb.asm.Opcodes.ACC_PUBLIC
+import org.objectweb.asm.Opcodes.ACC_STATIC
+import org.objectweb.asm.Opcodes.ALOAD
+import org.objectweb.asm.Opcodes.ASM9
+import org.objectweb.asm.Opcodes.DLOAD
+import org.objectweb.asm.Opcodes.DUP
+import org.objectweb.asm.Opcodes.FLOAD
+import org.objectweb.asm.Opcodes.GOTO
+import org.objectweb.asm.Opcodes.ILOAD
+import org.objectweb.asm.Opcodes.INVOKESPECIAL
+import org.objectweb.asm.Opcodes.INVOKESTATIC
+import org.objectweb.asm.Opcodes.IRETURN
+import org.objectweb.asm.Opcodes.LLOAD
+import org.objectweb.asm.Opcodes.NEW
+import org.objectweb.asm.Opcodes.RETURN
+import org.objectweb.asm.Opcodes.V1_8
+import org.objectweb.asm.RecordComponentVisitor
+import org.objectweb.asm.Type
+import org.objectweb.asm.TypePath
 import org.objectweb.asm.commons.AdviceAdapter
 import org.objectweb.asm.tree.LocalVariableNode
 import org.objectweb.asm.tree.MethodNode
@@ -977,7 +1004,7 @@ object WovenIntoCode {
     }
 
     fun wovenStaticCode(cw:ClassWriter,thisClassName:String){
-        val mv = cw.visitMethod(ACC_PUBLIC + ACC_STATIC, "<clinit>", "()V", null, null)
+        val mv = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null)
         for (moduleName in AppClasses.getAllModuleNames()) {
             val tryStart = Label()
             val tryEnd = Label()
@@ -990,36 +1017,51 @@ object WovenIntoCode {
                 labelCatch,
                 "java/lang/NoClassDefFoundError"
             )
+
             mv.visitLabel(tryStart)
 
             val className1 = "$thisClassName\$Inner${thisClassName.computeMD5()}_${moduleName.computeMD5()}"
-            mv.visitTypeInsn(AdviceAdapter.NEW,Utils.dotToSlash(className1))
-            mv.visitInsn(AdviceAdapter.DUP)
-            mv.visitMethodInsn(AdviceAdapter.INVOKESPECIAL,Utils.dotToSlash(className1),"<init>","()V",false)
-            mv.visitInsn(POP) // 保证 try 分支栈深为 0
+            mv.visitTypeInsn(NEW, Utils.dotToSlash(className1))
+            mv.visitInsn(DUP)
+            mv.visitMethodInsn(
+                INVOKESPECIAL,
+                Utils.dotToSlash(className1),
+                "<init>",
+                "()V",
+                false
+            )
+            mv.visitMethodInsn(
+                INVOKESTATIC,
+                dotToSlash(CONVERSIONS_CLASS),
+                "collectObject",
+                "(Ljava/lang/Object;)V",
+                false
+            )
 
             mv.visitLabel(tryEnd)
-            mv.visitJumpInsn(Opcodes.GOTO, tryCatchBlockEnd)
+            mv.visitJumpInsn(GOTO, tryCatchBlockEnd)
 
             mv.visitLabel(labelCatch)
-            mv.visitVarInsn(Opcodes.ASTORE, 0)
-
-            mv.visitVarInsn(Opcodes.ALOAD, 0)
+            mv.visitFrame(
+                Opcodes.F_SAME1, // 局部变量和上一个 frame 相同，但栈上多 1 个
+                0,               // nLocal = 0 (static 方法没有局部变量)
+                null,            // locals
+                1,               // nStack = 1
+                arrayOf("java/lang/NoClassDefFoundError") // catch 捕获的异常对象在栈顶
+            )
             mv.visitMethodInsn(
-                Opcodes.INVOKEVIRTUAL,
-                "java/lang/NoClassDefFoundError",
-                "printStackTrace",
-                "()V",
+                INVOKESTATIC,
+                dotToSlash(CONVERSIONS_CLASS),
+                "collectThrowable",
+                "(Ljava/lang/Throwable;)V",
                 false
             )
 
             mv.visitLabel(tryCatchBlockEnd)
-
-
         }
 
         mv.visitInsn(RETURN)
-        mv.visitMaxs(0, 0)
+        mv.visitMaxs(2, 0)
         mv.visitEnd()
     }
     private fun wovenMethodCode(cw:ClassWriter, superClassName:String, superMethodName:String, methodName:String, methodDescriptor:String, methodAccess:Int,methodNode:MethodNode? ,argInfos:List<LocalVariableNode>){
@@ -1122,7 +1164,7 @@ object WovenIntoCode {
         mv.visitEnd()
 
 
-        mv = cw.visitMethod(ACC_PUBLIC + ACC_STATIC, "<clinit>", "()V", null, null)
+        mv = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null)
         val map = WovenInfoUtils.getAopInstances()
         if (map.isNotEmpty()) {
             map.forEach { (key, value) ->
@@ -1163,7 +1205,7 @@ object WovenIntoCode {
                 mv.visitEnd()
 
 
-                mv = cw.visitMethod(ACC_PUBLIC+ACC_STATIC, "<clinit>", "()V", null, null);
+                mv = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
                 val map: MutableMap<String,AopCollectClass> = value
                 if (map.isNotEmpty()) {
                     val iterator = map.iterator();
