@@ -17,7 +17,9 @@ object ViewReplaceAop {
         context: Context,
         clazz: Class<*>
     ): View {
-        return clazz.getConstructor(Context::class.java).newInstance(context) as View
+        val method = clazz.getDeclaredConstructor(Context::class.java)
+        method.isAccessible = true
+        return method.newInstance(context) as View
     }
 
     @AndroidAopReplaceMethod("<init>(android.content.Context,android.util.AttributeSet)")
@@ -28,7 +30,9 @@ object ViewReplaceAop {
         clazz: Class<*>,
     ): View {
         //最后一个参数是Class类型其余参数类型及顺序和原构造方法完全一致，在这个方法内再去创建对象，此前并没有对象被创建出来
-        return clazz.getConstructor(Context::class.java,AttributeSet::class.java).newInstance(context,attrs) as View
+        val method = clazz.getDeclaredConstructor(Context::class.java,AttributeSet::class.java)
+        method.isAccessible = true
+        return method.newInstance(context,attrs) as View
     }
 
     @AndroidAopReplaceMethod("<init>(android.content.Context,android.util.AttributeSet,int)")
@@ -40,7 +44,9 @@ object ViewReplaceAop {
         clazz: Class<*>
     ): View {
         //最后一个参数是Class类型其余参数类型及顺序和原构造方法完全一致，在这个方法内再去创建对象，此前并没有对象被创建出来
-        return clazz.getConstructor(Context::class.java,AttributeSet::class.java,Int::class.java).newInstance(context,attrs,defStyleAttr) as View
+        val method = clazz.getDeclaredConstructor(Context::class.java,AttributeSet::class.java,Int::class.java)
+        method.isAccessible = true
+        return method.newInstance(context,attrs,defStyleAttr) as View
     }
 
     @AndroidAopReplaceMethod("<init>(android.content.Context,android.util.AttributeSet,int,int)")
@@ -56,7 +62,9 @@ object ViewReplaceAop {
             "ViewReplaceAop",
             "newViewConstruction4: $clazz,$context,$attrs,$defStyleAttr,$defStyleRes"
         )
+        val method = clazz.getDeclaredConstructor(Context::class.java,AttributeSet::class.java,Int::class.java,Int::class.java)
+        method.isAccessible = true
         //最后一个参数是Class类型其余参数类型及顺序和原构造方法完全一致，在这个方法内再去创建对象，此前并没有对象被创建出来
-        return clazz.getConstructor(Context::class.java,AttributeSet::class.java,Int::class.java,Int::class.java).newInstance(context,attrs,defStyleAttr,defStyleRes) as View
+        return method.newInstance(context,attrs,defStyleAttr,defStyleRes) as View
     }
 }
