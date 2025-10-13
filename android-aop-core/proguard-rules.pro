@@ -11,6 +11,7 @@
 -keepclasseswithmembers class * {
     @com.flyjingfish.android_aop_annotation.aop_anno.AopKeep <methods>;
 }
+-dontwarn **$Inner*_*
 -keep class com.flyjingfish.android_aop_annotation.utils.DebugAndroidAopInit{
    *;
 }
