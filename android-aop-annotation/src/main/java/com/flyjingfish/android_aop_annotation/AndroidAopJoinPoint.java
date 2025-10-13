@@ -296,7 +296,19 @@ public final class AndroidAopJoinPoint {
             if (tClass == null) {
                 throw new RuntimeException("织入代码异常");
             }
-            targetMethod = tClass.getDeclaredMethod(targetMethodName, classes);
+            try {
+                targetMethod = tClass.getDeclaredMethod(targetMethodName, classes);
+            } catch (NoSuchMethodException exc) {
+                Method oriMethod = Utils.INSTANCE.findMethodWithKeepName(tClass,targetMethodName,classes);
+                if (oriMethod == null){
+                    String realMethodName = getRealMethodName(targetMethodName);
+                    if (realMethodName == null){
+                        throw new RuntimeException(exc);
+                    }
+                    oriMethod = tClass.getDeclaredMethod(realMethodName, classes);
+                }
+                targetMethod = oriMethod;
+            }
             try {
                 originalMethod = tClass.getDeclaredMethod(originalMethodName, classes);
             } catch (NoSuchMethodException exc) {
