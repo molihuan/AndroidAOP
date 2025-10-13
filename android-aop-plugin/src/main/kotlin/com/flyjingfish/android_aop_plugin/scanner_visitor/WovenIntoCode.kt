@@ -458,12 +458,9 @@ object WovenIntoCode {
                     return@forEach
                 }
 
-                val constPool = ctClass.classFile.constPool
-
-
                 //给原有方法增加 @Keep，防止被混淆
-                targetMethod.addKeepClassAnnotation(constPool)
-                ctMethod.addKeepClassAnnotation(constPool)
+                ctMethod.addKeepClassAnnotation()
+                targetMethod.addKeepClassAnnotation()
 
                 val isStaticMethod =
                     Modifier.isStatic(ctMethod.modifiers)
@@ -974,7 +971,8 @@ object WovenIntoCode {
         }, ClassReader.EXPAND_FRAMES)
     }
 
-    private fun CtMethod.addKeepClassAnnotation(constPool: ConstPool){
+    private fun CtMethod.addKeepClassAnnotation(){
+        val constPool: ConstPool = this.declaringClass.classFile.constPool
         val visibleTagAttribute :AttributeInfo? = methodInfo.getAttribute(AnnotationsAttribute.visibleTag)
         val annotationsAttribute = if (visibleTagAttribute == null){
             AnnotationsAttribute(constPool, AnnotationsAttribute.visibleTag)
@@ -993,9 +991,7 @@ object WovenIntoCode {
             )
 
             annotationsAttribute.addAnnotation(annotation)
-            if (visibleTagAttribute == null){
-                methodInfo.addAttribute(annotationsAttribute)
-            }
+            methodInfo.addAttribute(annotationsAttribute)
         }
     }
 
