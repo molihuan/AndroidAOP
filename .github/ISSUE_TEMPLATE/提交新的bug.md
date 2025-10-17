@@ -22,3 +22,6 @@ assignees: ''
 ### 电脑类别:
 如：mac 还是 windows
 
+### Android Studio 版本:
+必须提供
+
