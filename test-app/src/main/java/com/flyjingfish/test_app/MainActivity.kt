@@ -15,7 +15,7 @@ import com.flyjingfish.android_aop_core.annotations.Permission
 import com.flyjingfish.android_aop_core.annotations.SingleClick
 import com.flyjingfish.android_aop_core.annotations.TryCatch
 import com.flyjingfish.android_aop_core.enums.ThreadType
-import com.flyjingfish.androidaop.databinding.ActivityMainBinding
+import com.flyjingfish.test_app.databinding.ActivityMainBinding
 import com.flyjingfish.test_lib.LocaleTransform
 import com.flyjingfish.test_lib.PermissionRejectListener
 import com.flyjingfish.test_lib.TestMatch
@@ -28,7 +28,7 @@ import java.lang.Thread.sleep
 
 class MainActivity: AppCompatActivity(), PermissionRejectListener{
 //    val haha = 1
-    lateinit var binding:ActivityMainBinding
+    lateinit var binding: ActivityMainBinding
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)

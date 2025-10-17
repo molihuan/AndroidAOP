@@ -7,6 +7,7 @@ import com.android.build.gradle.internal.tasks.DexArchiveBuilderTask
 import com.flyjingfish.android_aop_plugin.config.AndroidAopConfig
 import com.flyjingfish.android_aop_plugin.tasks.AssembleAndroidAopTask
 import com.flyjingfish.android_aop_plugin.utils.AppClasses
+import com.flyjingfish.android_aop_plugin.utils.InitConfig
 import com.flyjingfish.android_aop_plugin.utils.RuntimeProject
 import io.github.flyjingfish.fast_transform.tasks.DefaultTransformTask
 import io.github.flyjingfish.fast_transform.toTransformAll
@@ -30,9 +31,28 @@ object TransformPlugin : BasePlugin() {
             }
             return
         }
-        if (isApp){
-            project.rootProject.gradle.taskGraph.addTaskExecutionGraphListener {
-                AppClasses.clearModuleNames()
+        val androidAopConfig = project.extensions.getByType(AndroidAopConfig::class.java)
+
+        project.rootProject.gradle.taskGraph.addTaskExecutionGraphListener {
+            for (task in it.allTasks) {
+                val project = task.project
+                val isDynamic = project.plugins.hasPlugin(DynamicFeaturePlugin::class.java)
+                if (isDynamic && task is AssembleAndroidAopTask){
+                    task.doFirst {
+                        AndroidAopConfig.syncConfig(project)
+                    }
+                }
+            }
+            val appTask = it.allTasks.firstOrNull {
+                val project = it.project
+                val isApp = project.plugins.hasPlugin(AppPlugin::class.java)
+                isApp
+            }
+            appTask?.let { app ->
+                AndroidAopConfig.syncConfig(app.project)
+            }
+            AppClasses.clearModuleNames()
+            if (isApp){
                 for (task in it.allTasks) {
                     val project = task.project
                     val isApp = project.plugins.hasPlugin(AppPlugin::class.java)
@@ -42,33 +62,32 @@ object TransformPlugin : BasePlugin() {
                     }
                 }
                 try {
-                    var lastCanModifyTask : Task? =null
-                    var dexTask : DexArchiveBuilderTask? =null
-                    var aopTask : AssembleAndroidAopTask? =null
-                    for (task in it.allTasks) {
-                        if (task is AssembleAndroidAopTask){
-                            aopTask = task
-                        }
-                        if (task is DexArchiveBuilderTask){
-                            dexTask = task
-                            break
-                        }
-                        lastCanModifyTask = task
+                    val assembleAndroidAopTasks =  it.allTasks.filter {
+                        it is AssembleAndroidAopTask
                     }
-                    if (lastCanModifyTask != null && dexTask != null && aopTask != null){
-                        if (lastCanModifyTask !is AssembleAndroidAopTask && lastCanModifyTask !is DefaultTransformTask){
-                            if (aopTask.isFastDex){
-                                val hintText = "When fastDex is enabled, you should put [id 'android.aop'] at the end to make ${aopTask.name} execute after ${lastCanModifyTask.name}"
+
+                    for ((index,aopTask) in assembleAndroidAopTasks.withIndex()) {
+                        val nextTask = it.allTasks[index+1]
+                        var lastCanModifyTask : Task? =null
+                        for (i in index+1 until it.allTasks.size) { // 0..list.size-1
+                            val task = it.allTasks[i]
+                            if (task is DexArchiveBuilderTask){
+                                break
+                            }
+                            lastCanModifyTask = task
+                        }
+                        if (aopTask is AssembleAndroidAopTask && aopTask.isFastDex && nextTask !is DexArchiveBuilderTask && lastCanModifyTask != null && lastCanModifyTask !is AssembleAndroidAopTask){
+                            val hintText = "When fastDex is enabled, you should put [id 'android.aop'] at the end to make ${aopTask.name} execute after ${lastCanModifyTask.name}"
+                            project.logger.error(hintText)
+                            aopTask.doLast {
                                 project.logger.error(hintText)
-                                aopTask.doLast {
-                                    project.logger.error(hintText)
-                                }
-                                it.allTasks[it.allTasks.size - 1].doLast {
-                                    project.logger.error(hintText)
-                                }
+                            }
+                            it.allTasks[it.allTasks.size - 1].doLast {
+                                project.logger.error(hintText)
                             }
                         }
                     }
+
                 } catch (_: Exception) {
                 }
             }
@@ -76,10 +95,7 @@ object TransformPlugin : BasePlugin() {
         val androidComponents = project.extensions.getByType(AndroidComponentsExtension::class.java)
         androidComponents.onVariants { variant ->
             val runtimeProject = RuntimeProject.get(project)
-            val androidAopConfig = project.extensions.getByType(AndroidAopConfig::class.java)
-            if (isApp){
-                androidAopConfig.initConfig()
-            }
+
             val buildTypeName = variant.buildType
             if (androidAopConfig.enabled && !isDebugMode(buildTypeName,variant.name)){
                 val fastDex = isFastDex(buildTypeName,variant.name)

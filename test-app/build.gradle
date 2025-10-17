@@ -13,12 +13,13 @@ androidAopConfig {
     // debug 为true打开日志方便调试
     debug true
     // 测试
-    include 'com.flyjingfish.test'
+    include 'com.flyjingfish.test_app'
     //默认关闭，开启后将会生成切点信息json文件在 /build/tmp/cutInfo.json
     cutInfoJson true
     increment true
     // 移除kotlin相关，编译错误和提升速度
 //    exclude 'kotlin.jvm', 'kotlin.internal','kotlinx.coroutines.internal', 'kotlinx.coroutines.android'
+    excludePackaging 'META-INF/DEPENDENCIES', 'META-INF/NOTICE' , 'META-INF/LICENSE' , 'META-INF/LICENSE.txt' , 'META-INF/NOTICE.txt' , 'license/README.dom.txt' , 'license/LICENSE.dom-documentation.txt' , 'license/NOTICE' , 'license/LICENSE.dom-software.txt' , 'license/LICENSE'
 }
 android {
     namespace 'com.flyjingfish.test_app'
@@ -82,16 +83,23 @@ android {
 
     packagingOptions {
         exclude 'META-INF/kotlinx_coroutines_core.version'
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'license/README.dom.txt'
+        exclude 'license/LICENSE.dom-documentation.txt'
+        exclude 'license/NOTICE'
+        exclude 'license/LICENSE.dom-software.txt'
+        exclude 'license/LICENSE'
     }
 
 }
 
 dependencies {
-    implementation libs.core.ktx
-    implementation libs.appcompat
-    implementation libs.material
     implementation project(path: ":test-lib")
-    if (TestType == "0"){
+    if (TestType == "-1"){
         //本地
         ksp project(':android-aop-apt')
 //        kapt project(':android-aop-apt')

@@ -13,6 +13,7 @@ import com.flyjingfish.android_aop_plugin.scanner_visitor.SuspendReturnScanner
 import com.flyjingfish.android_aop_plugin.scanner_visitor.WovenIntoCode
 import com.flyjingfish.android_aop_plugin.tasks.CompileAndroidAopTask
 import com.flyjingfish.android_aop_plugin.tasks.DebugModeFileTask
+import com.flyjingfish.android_aop_plugin.utils.AppClasses
 import com.flyjingfish.android_aop_plugin.utils.ClassFileUtils
 import com.flyjingfish.android_aop_plugin.utils.ClassPoolUtils
 import com.flyjingfish.android_aop_plugin.utils.FileHashUtils
@@ -171,10 +172,17 @@ class CompilePlugin(private val fromRootSet:Boolean): BasePlugin() {
             project.rootProject.gradle.taskGraph.addTaskExecutionGraphListener(object :
                 TaskExecutionGraphListener {
                 override fun graphPopulated(it: TaskExecutionGraph) {
+                    val appTask = it.allTasks.firstOrNull {
+                        val project = it.project
+                        val isApp = project.plugins.hasPlugin(AppPlugin::class.java)
+                        isApp
+                    }
                     startTask = true
-                    AndroidAopConfig.syncConfig(project)
-                    if (AndroidAopConfig.cutInfoJson){
-                        InitConfig.initCutInfo(runtimeProject,true)
+                    appTask?.let {
+                        AndroidAopConfig.syncConfig(it.project)
+                        if (AndroidAopConfig.cutInfoJson){
+                            InitConfig.initCutInfo(runtimeProject,true)
+                        }
                     }
                     project.rootProject.gradle.taskGraph.removeTaskExecutionGraphListener(this)
                 }
